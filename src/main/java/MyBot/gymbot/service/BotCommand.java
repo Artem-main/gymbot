@@ -9,7 +9,8 @@ public enum BotCommand {
     FINISH_EXERCISE("Закончить упражнение"),
     BACK_MUSCLES("Спина"),
     CHEST("Грудь"),
-    LEGS("Ноги");
+    LEGS("Ноги"),
+    RESULTS("Результат");
 
     private final String command;
 

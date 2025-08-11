@@ -94,6 +94,22 @@ public class TelegramBot extends TelegramLongPollingBot {
                 case LEGS, CHEST, BACK_MUSCLES -> {
                     handleExerciseCategory(update, sendMessage, text);
                 }
+                case RESULTS -> {
+                    sendMessage.setChatId(chatId);
+                    Map<String, Integer> results = weightInputService.getResultsForChat(chatId);
+
+                    if (results.isEmpty()) {
+                        sendMessage.setText("Результаты пока отсутствуют");
+                    } else {
+                        StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
+                        for (Map.Entry<String, Integer> entry : results.entrySet()) {
+                            resultMessage.append(entry.getKey()).append(" - ").append(entry.getValue()).append(" кг\n");
+                        }
+                        sendMessage.setText(resultMessage.toString());
+                    }
+
+                    execute(sendMessage);
+                }
                 default -> {
                     handleExerciseSelection(update, sendMessage, text, chatId);
                 }

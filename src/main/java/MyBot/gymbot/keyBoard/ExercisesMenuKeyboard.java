@@ -45,6 +45,7 @@ public class ExercisesMenuKeyboard {
         // Добавляем кнопку завершения
         KeyboardRow finishRow = new KeyboardRow();
         finishRow.add(BotCommand.FINISH_EXERCISE.getCommand());
+        finishRow.add(BotCommand.RESULTS.getCommand());
         keyboardRows.add(finishRow);
 
         keyboard.setKeyboard(keyboardRows);
