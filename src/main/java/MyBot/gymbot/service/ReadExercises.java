@@ -23,17 +23,4 @@ public class ReadExercises {
         }
         return exercises;
     }
-
-    // Метод получения всех упражнений
-//    @SneakyThrows
-//    public List<String> getAllExercises() {
-//        List<String> exercises = new ArrayList<>();
-//        exercises.addAll(readExercisesFromFile
-//                (exercisesMenuKeyboard.getPathExercises(BotCommand.BACK_MUSCLES.getCommand())));
-//        exercises.addAll(readExercisesFromFile
-//                (exercisesMenuKeyboard.getPathExercises(BotCommand.LEGS.getCommand())));
-//        exercises.addAll(readExercisesFromFile
-//                (exercisesMenuKeyboard.getPathExercises(BotCommand.CHEST.getCommand())));
-//        return exercises;
-//    }
 }

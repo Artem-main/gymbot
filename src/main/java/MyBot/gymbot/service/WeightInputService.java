@@ -7,28 +7,33 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class WeightInputService {
-    private final Map<String, Boolean> waitingForNumbers = new HashMap<>();
-    private final String EXERCISE_NAME = "Жим гантелей стоя - 4х10";
+    private final Map<String, String> waitingForNumbers = new HashMap<>();
 
     // Активация режима ожидания числа
-    public void startWaitingForNumber(String chatId) {
-            waitingForNumbers.put(chatId, true);
+    public void startWaitingForNumber(String chatId, String exerciseName) {
+        waitingForNumbers.put(chatId, exerciseName);
     }
 
     // Проверка на ожидание числа
     public boolean isWaitingForNumber(String chatId) {
-           return waitingForNumbers.getOrDefault(chatId, false);
+        return waitingForNumbers.containsKey(chatId);
+    }
+
+    // Получение названия упражнения
+    public String getCurrentExercise(String chatId) {
+        return waitingForNumbers.getOrDefault(chatId, "");
     }
 
     // Обработка введенного числа
     public void processNumberInput(String chatId, String text, Executor executor) {
         try {
             int number = Integer.parseInt(text);
+            String exerciseName = getCurrentExercise(chatId);
             waitingForNumbers.remove(chatId);
 
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(chatId);
-            sendMessage.setText(EXERCISE_NAME + ": " + number + " кг");
+            sendMessage.setText(exerciseName + ": " + number + " кг");
 
             try {
                 executor.execute(sendMessage);
