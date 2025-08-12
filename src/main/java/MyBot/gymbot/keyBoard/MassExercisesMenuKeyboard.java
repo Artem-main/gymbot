@@ -12,7 +12,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExercisesMenuKeyboard {
+public class MassExercisesMenuKeyboard {
     private final ReadExercises readExercises = new ReadExercises();
     private final SendMessage sendMessageBack = new SendMessage();
 

@@ -8,24 +8,12 @@
 		<version>2.7.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>MyBot</groupId>
-	<artifactId>gymbot</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>gymbot</name>
-	<description>GYMBOTPROJECT</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+
+		<groupId>MyBot</groupId>
+		<artifactId>gymbot</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+		<name>gymbot</name>
+		<description>GYMBOTPROJECT</description>
 	<properties>
 		<java.version>16</java.version>
 	</properties>

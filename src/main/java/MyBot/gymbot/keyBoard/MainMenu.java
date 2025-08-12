@@ -10,6 +10,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import java.util.ArrayList;
 import java.util.List;
 
+import static MyBot.gymbot.service.BotCommand.*;
+
 public class MainMenu {
     public ReplyKeyboard createReplyKeyboard (Update update) {
         SendMessage message = new SendMessage();
@@ -26,9 +28,9 @@ public class MainMenu {
 
         // Первая строка
         KeyboardRow row1 = new KeyboardRow();
-        row1.add(new KeyboardButton("Спина"));
-        row1.add(new KeyboardButton("Грудь"));
-        row1.add(new KeyboardButton("Ноги"));
+        row1.add(new KeyboardButton(BACK_MUSCLES.getCommand()));
+        row1.add(new KeyboardButton(CHEST.getCommand()));
+        row1.add(new KeyboardButton(LEGS.getCommand()));
         // Вторая строка
 //        KeyboardRow row2 = new KeyboardRow();
 

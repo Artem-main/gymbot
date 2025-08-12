@@ -1,7 +1,7 @@
 package MyBot.gymbot.controller;
 
 import MyBot.gymbot.config.properties.BotProperties;
-import MyBot.gymbot.keyBoard.ExercisesMenuKeyboard;
+import MyBot.gymbot.keyBoard.MassExercisesMenuKeyboard;
 import MyBot.gymbot.keyBoard.MainMenu;
 import MyBot.gymbot.service.BotCommand;
 import MyBot.gymbot.service.ReadExercises;
@@ -29,7 +29,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final String botToken;
     private final String botUsername;
     private final MainMenu mainMenu = new MainMenu();
-    private final ExercisesMenuKeyboard exercisesMenuKeyboard = new ExercisesMenuKeyboard();
+    private final MassExercisesMenuKeyboard massExercisesMenuKeyboard = new MassExercisesMenuKeyboard();
     private final WeightInputService weightInputService = new WeightInputService();
     // Хранилище для сохранения текущей категории для каждого чата
     private final Map<String, String> chatCategories = new HashMap<>();
@@ -64,7 +64,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             String text = update.getMessage().getText();
             String chatId = update.getMessage().getChatId().toString();
             SendMessage sendMessage = new SendMessage();
-
             BotCommand command = BotCommand.fromCommand(text);
 
             if (command == null) {
@@ -75,46 +74,71 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             switch (command) {
                 case START -> {
-                    sendMessage.setChatId(chatId);
-                    sendMessage.setText("Меню");
-                    sendMessage.setReplyMarkup(mainMenu.createReplyKeyboard(update));
-                    execute(sendMessage);
+                    getStartedMenu(update,sendMessage,chatId);
                 }
                 case FINISH_EXERCISE -> {
-                    sendMessage.setChatId(chatId);
-                    sendMessage.setText("Вы закончили тренировку");
-                    // создаем объект удаления клавиатуры
-                    removeKeyboard.setRemoveKeyboard(true);
-                    sendMessage.setReplyMarkup(removeKeyboard);
-                    sendMessage.setReplyMarkup(mainMenu.createReplyKeyboard(update));
-                    // Показываем главное меню после завершения упражнения
-                    execute(sendMessage);
-                    chatCategories.remove(chatId); // Очищаем категорию
+                    getFinishExercises(update,sendMessage,chatId);
                 }
                 case LEGS, CHEST, BACK_MUSCLES -> {
                     handleExerciseCategory(update, sendMessage, text);
                 }
                 case RESULTS -> {
-                    sendMessage.setChatId(chatId);
-                    Map<String, Integer> results = weightInputService.getResultsForChat(chatId);
-
-                    if (results.isEmpty()) {
-                        sendMessage.setText("Результаты пока отсутствуют");
-                    } else {
-                        StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
-                        for (Map.Entry<String, Integer> entry : results.entrySet()) {
-                            resultMessage.append(entry.getKey()).append(" - ").append(entry.getValue()).append(" кг\n");
-                        }
-                        sendMessage.setText(resultMessage.toString());
-                    }
-
-                    execute(sendMessage);
+                    getResultsExercises(update,sendMessage, chatId);
                 }
                 default -> {
                     handleExerciseSelection(update, sendMessage, text, chatId);
                 }
             }
         }
+    }
+    @SneakyThrows
+    private void getStartedMenu (Update update, SendMessage sendMessage, String chatId) {
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("Меню");
+        sendMessage.setReplyMarkup(mainMenu.createReplyKeyboard(update));
+        execute(sendMessage);
+    }
+
+    @SneakyThrows
+    private void getFinishExercises (Update update, SendMessage sendMessage, String chatId) {
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("Вы закончили тренировку");
+        // создаем объект удаления клавиатуры
+        removeKeyboard.setRemoveKeyboard(true);
+        sendMessage.setReplyMarkup(removeKeyboard);
+        sendMessage.setReplyMarkup(mainMenu.createReplyKeyboard(update));
+        // Показываем главное меню после завершения упражнения
+        execute(sendMessage);
+        chatCategories.remove(chatId); // Очищаем категорию
+    }
+
+    @SneakyThrows
+    private void getResultsExercises (Update update, SendMessage sendMessage, String chatId) {
+        sendMessage.setChatId(chatId); // Устанавливаем идентификатор чата, куда будет отправлено сообщение
+        // Получаем результаты тренировок для конкретного чата из сервиса WeightInputService
+        Map<String, Integer> results = weightInputService.getResultsForChat(chatId);
+        // Проверяем, есть ли результаты в полученной карте
+        if (results.isEmpty()) {
+            // Если результатов нет, устанавливаем в сообщение текст об отсутствии результатов
+            sendMessage.setText("Результаты пока отсутствуют");
+        } else {
+            // Если результаты есть, формируем сообщение с ними
+            StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
+
+            // Проходим по всем парам "упражнение-вес" в карте результатов
+            for (Map.Entry<String, Integer> entry : results.entrySet()) {
+                // Формируем строку для каждого упражнения
+                // entry.getKey() - название упражнения
+                // entry.getValue() - вес в килограммах
+                resultMessage.append(entry.getKey()) // добавляем название упражнения
+                        .append(" - ") // добавляем разделитель
+                        .append(entry.getValue()) // добавляем вес
+                        .append(" кг\n"); // добавляем единицу измерения и перенос строки
+            }
+            // Устанавливаем сформированное сообщение в объект SendMessage
+            sendMessage.setText(resultMessage.toString());
+        }
+        execute(sendMessage);
     }
 
     @SneakyThrows
@@ -126,7 +150,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         sendMessage.setChatId(chatId);
         sendMessage.setText("Выберите упражнение");
-        sendMessage.setReplyMarkup(exercisesMenuKeyboard.menuExercisesKeyboard(update));
+        sendMessage.setReplyMarkup(massExercisesMenuKeyboard.menuExercisesKeyboard(update));
         execute(sendMessage);
     }
 
@@ -143,7 +167,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
 
         List<String> exercises = readExercises.readExercisesFromFile(
-                exercisesMenuKeyboard.getPathExercises(category)
+                massExercisesMenuKeyboard.getPathExercises(category)
         );
 
         if (exercises.contains(text)) {
