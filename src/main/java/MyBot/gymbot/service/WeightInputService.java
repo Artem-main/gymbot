@@ -13,29 +13,29 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class WeightInputService {
-    private final Map<String, String> waitingForNumbers = new HashMap<>();
+    private final Map<Long, String> waitingForNumbers = new HashMap<>();
     private final String resultsFilePath = "trainingFiles/results.txt";
     // Map для хранения результатов
-    private final Map<String, Map<String, Integer>> exerciseResults = new HashMap<>();
+    private final Map<Long, Map<String, Integer>> exerciseResults = new HashMap<>();
 
     // Активация режима ожидания числа
-    public void startWaitingForNumber(String chatId, String exerciseName) {
+    public void startWaitingForNumber(Long chatId, String exerciseName) {
         waitingForNumbers.put(chatId, exerciseName);
     }
 
     // Проверка на ожидание числа
-    public boolean isWaitingForNumber(String chatId) {
+    public boolean isWaitingForNumber(Long chatId) {
         return waitingForNumbers.containsKey(chatId);
     }
 
     // Получение названия упражнения
-    public String getCurrentExercise(String chatId) {
+    public String getCurrentExercise(Long chatId) {
         return waitingForNumbers.getOrDefault(chatId, "");
     }
 
     // Обработка введенного числа
     @SneakyThrows
-    public void processNumberInput(String chatId, String text, Executor executor) {
+    public void processNumberInput(Long chatId, String text, Executor executor) {
         try {
             int number = Integer.parseInt(text);
             String exerciseName = getCurrentExercise(chatId);
@@ -60,7 +60,7 @@ public class WeightInputService {
     }
 
     // Метод сохранения результата в Map
-    private void saveResult(String chatId, String exerciseName, int weight) {
+    private void saveResult(Long chatId, String exerciseName, int weight) {
         // Получаем или создаем Map для конкретного чата
         Map<String, Integer> chatResults = exerciseResults.computeIfAbsent(chatId, k -> new HashMap<>());
 
@@ -69,7 +69,7 @@ public class WeightInputService {
     }
 
     // Получение всех результатов для чата
-    public Map<String, Integer> getResultsForChat(String chatId) {
+    public Map<String, Integer> getResultsForChat(Long chatId) {
         return exerciseResults.getOrDefault(chatId, new HashMap<>());
     }
 
@@ -123,7 +123,7 @@ public class WeightInputService {
     }
 
     // Обработка ошибки отправки
-    private void handleSendError(String chatId, Executor executor) {
+    private void handleSendError(Long chatId, Executor executor) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.setText("Ошибка при отправке результата");
@@ -136,7 +136,7 @@ public class WeightInputService {
     }
 
     // Обработка неверного ввода
-    private void handleInvalidInput(String chatId, Executor executor) {
+    private void handleInvalidInput(Long chatId, Executor executor) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.setText("Ошибка! Введите числовое значение веса");

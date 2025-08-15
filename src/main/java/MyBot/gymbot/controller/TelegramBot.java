@@ -1,11 +1,13 @@
 package MyBot.gymbot.controller;
 
+import MyBot.gymbot.Data.DatabaseHelper;
+import MyBot.gymbot.ExercisesKeyboard.CardioTraining;
 import MyBot.gymbot.config.properties.BotProperties;
-import MyBot.gymbot.keyBoard.MassExercisesMenuKeyboard;
-import MyBot.gymbot.keyBoard.MainMenu;
-import MyBot.gymbot.service.BotCommand;
-import MyBot.gymbot.service.ReadExercises;
-import MyBot.gymbot.service.WeightInputService;
+import MyBot.gymbot.ExercisesKeyboard.MassExercisesMenuKeyboard;
+import MyBot.gymbot.ExercisesKeyboard.MainMenu;
+import MyBot.gymbot.service.*;
+import MyBot.gymbot.utils.ReadExercisesUtils;
+import MyBot.gymbot.utils.ReadFilesUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static MyBot.gymbot.service.BotCommand.FINISH_EXERCISE;
+import static MyBot.gymbot.service.BotCommand.*;
 
 
 @Component
@@ -31,10 +33,15 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final MainMenu mainMenu = new MainMenu();
     private final MassExercisesMenuKeyboard massExercisesMenuKeyboard = new MassExercisesMenuKeyboard();
     private final WeightInputService weightInputService = new WeightInputService();
+
     // Хранилище для сохранения текущей категории для каждого чата
     private final Map<String, String> chatCategories = new HashMap<>();
-    private final ReadExercises readExercises = new ReadExercises();
+    private final ReadExercisesUtils readExercisesUtils = new ReadExercisesUtils();
     private final ReplyKeyboardRemove removeKeyboard = new ReplyKeyboardRemove();
+    private final CardioTraining cardioTraining = new CardioTraining();
+    private final ReadFilesUtils readFilesUtils = new ReadFilesUtils();
+    private final DatabaseHelper dbHelper = new DatabaseHelper();
+
 
     @Autowired
     public TelegramBot(BotProperties botProperties) {
@@ -61,20 +68,48 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
+
             String text = update.getMessage().getText();
-            String chatId = update.getMessage().getChatId().toString();
+            Long chatId = update.getMessage().getChatId();
+            String username = update.getMessage().getFrom().getUserName();
+
             SendMessage sendMessage = new SendMessage();
-            BotCommand command = BotCommand.fromCommand(text);
+            BotCommand command = fromCommand(text);
+
+            // Сначала проверяем есть ID в базе
+            if (dbHelper.getUser(chatId) == null) {
+                // Сохраняем или обновляем информацию о пользователе
+                dbHelper.addUser(chatId, username);
+                sendMessage(chatId, "Привет, " + (username != null ? "@" + username : "пользователь") + "!\n" +
+                        "Ваш ID сохранен в базе данных.");
+            }
 
             if (command == null) {
                 // Если команда не распознана, обрабатываем как выбор упражнения
                 handleExerciseSelection(update, sendMessage, text, chatId);
                 return;
             }
+//        STRENGHT
+//        WEIGHT_LOSS
+//        NUTRITION
+//        FUNCTIONAL
+//        FAT_BURNING
+//        WARM_UP
 
             switch (command) {
-                case START -> {
+                case START, BACK_ON_MENU -> {
                     getStartedMenu(update,sendMessage,chatId);
+                }
+                case WEIGHT_GAIN -> {
+                    sendMessage = new SendMessage();
+                    sendMessage.setChatId(chatId);
+                    sendMessage.setText(readFilesUtils.readTextFromFile(
+                            WEIGHT_GAIN.getFilePath()
+                    ));
+
+                    sendMessage.setReplyMarkup(massExercisesMenuKeyboard
+                            .showCategoriesKeyboard(update));
+                    execute(sendMessage);
                 }
                 case FINISH_EXERCISE -> {
                     getFinishExercises(update,sendMessage,chatId);
@@ -85,22 +120,45 @@ public class TelegramBot extends TelegramLongPollingBot {
                 case RESULTS -> {
                     getResultsExercises(update,sendMessage, chatId);
                 }
+                case CARDIO -> {
+                    sendMessage.setChatId(chatId);
+                    sendMessage.setText("Выберите меню");
+                    sendMessage.setReplyMarkup(cardioTraining.cardioKeyboard(update));
+                    execute(sendMessage);
+                }
+                case CARDIO_TRAINING -> {
+                    sendMessage.setChatId(chatId);
+                    String exe = readFilesUtils.readTextFromFile(
+                            cardioTraining.getPathCardioCategory(CARDIO_TRAINING.getCommand()));
+                    sendMessage.setText(exe);
+                    execute(sendMessage);
+
+                }
+                case CARDIO_RECOMMENDATIONS -> {
+                    sendMessage.setChatId(chatId);
+                    String exercises = readFilesUtils.readTextFromFile(
+                            cardioTraining.getPathCardioCategory(CARDIO_RECOMMENDATIONS.getCommand()));
+                    sendMessage.setText(exercises);
+                    execute(sendMessage);
+                }
                 default -> {
                     handleExerciseSelection(update, sendMessage, text, chatId);
                 }
             }
         }
     }
+
     @SneakyThrows
-    private void getStartedMenu (Update update, SendMessage sendMessage, String chatId) {
+    private void getStartedMenu (Update update, SendMessage sendMessage, Long chatId) {
+        final String readMainMenuText = readFilesUtils.readTextFromFile(START.getFilePath());
         sendMessage.setChatId(chatId);
-        sendMessage.setText("Меню");
+        sendMessage.setText(readMainMenuText);
         sendMessage.setReplyMarkup(mainMenu.createReplyKeyboard(update));
         execute(sendMessage);
     }
 
     @SneakyThrows
-    private void getFinishExercises (Update update, SendMessage sendMessage, String chatId) {
+    private void getFinishExercises (Update update, SendMessage sendMessage, Long chatId) {
         sendMessage.setChatId(chatId);
         sendMessage.setText("Вы закончили тренировку");
         // создаем объект удаления клавиатуры
@@ -113,7 +171,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     @SneakyThrows
-    private void getResultsExercises (Update update, SendMessage sendMessage, String chatId) {
+    private void getResultsExercises (Update update, SendMessage sendMessage, Long chatId) {
         sendMessage.setChatId(chatId); // Устанавливаем идентификатор чата, куда будет отправлено сообщение
         // Получаем результаты тренировок для конкретного чата из сервиса WeightInputService
         Map<String, Integer> results = weightInputService.getResultsForChat(chatId);
@@ -155,9 +213,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     @SneakyThrows
-    private void handleExerciseSelection(Update update, SendMessage sendMessage, String text, String chatId) {
+    private void handleExerciseSelection(Update update, SendMessage sendMessage, String text, Long chatId) {
         // Получаем текущую категорию для чата
-        String category = chatCategories.get(chatId);
+        String category = chatCategories.get(chatId.toString());
 
         if (category == null) {
             sendMessage.setChatId(chatId);
@@ -166,11 +224,12 @@ public class TelegramBot extends TelegramLongPollingBot {
             return;
         }
 
-        List<String> exercises = readExercises.readExercisesFromFile(
+        List<String> exercises = readExercisesUtils.readExercisesFromFile(
                 massExercisesMenuKeyboard.getPathExercises(category)
         );
 
         if (exercises.contains(text)) {
+            // Запускаем режим ожидания ввода веса
             weightInputService.startWaitingForNumber(chatId, text);
             sendMessage.setChatId(chatId);
             sendMessage.setText("Введите вес для упражнения: " + text);
@@ -178,7 +237,9 @@ public class TelegramBot extends TelegramLongPollingBot {
             return;
         }
 
+        // Проверяем, ожидает ли сервис ввода числа
         if (weightInputService.isWaitingForNumber(chatId) && !update.getMessage().getText().equals(FINISH_EXERCISE.getCommand())) {
+            // Обрабатываем введенный вес
             weightInputService.processNumberInput(
                     chatId,
                     text,
@@ -190,6 +251,25 @@ public class TelegramBot extends TelegramLongPollingBot {
                         }
                     }
             );
+        } else {
+            // Если введенный текст не является числом и не является командой завершения
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("Пожалуйста, введите числовое значение веса");
+            execute(sendMessage);
         }
     }
+
+    @SneakyThrows
+    private void sendMessage(Long chatId, String text) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(text);
+        execute(sendMessage);
+    }
+
+    @Override
+    public void onClosing() {
+        dbHelper.close();
+    }
+
 }

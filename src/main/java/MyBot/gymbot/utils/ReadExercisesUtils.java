@@ -1,4 +1,4 @@
-package MyBot.gymbot.service;
+package MyBot.gymbot.utils;
 
 import org.springframework.stereotype.Service;
 
@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class ReadExercises {
+public class ReadExercisesUtils {
     public List<String> readExercisesFromFile(String filePath) throws IOException {
         List<String> exercises = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {

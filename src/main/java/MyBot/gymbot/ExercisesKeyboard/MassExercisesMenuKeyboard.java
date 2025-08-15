@@ -1,7 +1,7 @@
-package MyBot.gymbot.keyBoard;
+package MyBot.gymbot.ExercisesKeyboard;
 
-import MyBot.gymbot.service.BotCommand;
-import MyBot.gymbot.service.ReadExercises;
+import MyBot.gymbot.utils.KeyboardUtils;
+import MyBot.gymbot.utils.ReadExercisesUtils;
 import lombok.SneakyThrows;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -12,8 +12,10 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import java.util.ArrayList;
 import java.util.List;
 
+import static MyBot.gymbot.service.BotCommand.*;
+
 public class MassExercisesMenuKeyboard {
-    private final ReadExercises readExercises = new ReadExercises();
+    private final ReadExercisesUtils readExercisesUtils = new ReadExercisesUtils();
     private final SendMessage sendMessageBack = new SendMessage();
 
     @SneakyThrows
@@ -25,7 +27,7 @@ public class MassExercisesMenuKeyboard {
         sendMessageBack.setText("Выберите упражнение для " + category);
 
         // Читаем список упражнений из файла
-        List<String> exercises = readExercises.readExercisesFromFile(getPathExercises(category));
+        List<String> exercises = readExercisesUtils.readExercisesFromFile(getPathExercises(category));
 
         // Создаем объект клавиатуры
         ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup();
@@ -44,9 +46,14 @@ public class MassExercisesMenuKeyboard {
 
         // Добавляем кнопку завершения
         KeyboardRow finishRow = new KeyboardRow();
-        finishRow.add(BotCommand.FINISH_EXERCISE.getCommand());
-        finishRow.add(BotCommand.RESULTS.getCommand());
+        finishRow.add(FINISH_EXERCISE.getCommand());
+        finishRow.add(RESULTS.getCommand());
         keyboardRows.add(finishRow);
+
+        // Кнопка назад
+        KeyboardRow backButton = new KeyboardRow();
+        backButton.add(BACK_ON_MENU.getCommand());
+        keyboardRows.add(backButton);
 
         keyboard.setKeyboard(keyboardRows);
         return keyboard;
@@ -55,23 +62,49 @@ public class MassExercisesMenuKeyboard {
     private String getCategoryFromUpdate(Update update) {
         // Получаем предыдущее сообщение, чтобы определить категорию
         String text = update.getMessage().getText();
-        if (text.equals(BotCommand.BACK_MUSCLES.getCommand())) {
-            return "Спина";
-        } else if (text.equals(BotCommand.LEGS.getCommand())) {
-            return "Ноги";
-        } else if (text.equals(BotCommand.CHEST.getCommand())) {
-            return "Грудь";
+        if (text.equals(BACK_MUSCLES.getCommand())) {
+            return BACK_MUSCLES.getCommand();
+        } else if (text.equals(LEGS.getCommand())) {
+            return LEGS.getCommand();
+        } else if (text.equals(CHEST.getCommand())) {
+            return CHEST.getCommand();
         }
         return null; // значение по умолчанию
     }
 
     public String getPathExercises(String category) {
         return switch (category) {
-            case "Спина" -> "src/main/resources/trainingFiles/back.txt";
-            case "Ноги" -> "src/main/resources/trainingFiles/legs.txt";
-            case "Грудь" -> "src/main/resources/trainingFiles/chest.txt";
+            case "Спина"-> BACK_MUSCLES.getFilePath();
+            case "Ноги" -> LEGS.getFilePath();
+            case "Грудь" -> CHEST.getFilePath();
             default -> null;
         };
+    }
+
+    public ReplyKeyboardMarkup showCategoriesKeyboard(Update update) {
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(update.getMessage().getChatId());
+
+        ReplyKeyboardMarkup keyboard = new KeyboardUtils()
+                .createBasicKeyboard();
+
+
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(new KeyboardButton(CHEST.getCommand()));
+        row.add(new KeyboardButton(BACK_MUSCLES.getCommand()));
+        row.add(new KeyboardButton(LEGS.getCommand()));
+        keyboardRows.add(row);
+
+        // Кнопка назад
+        KeyboardRow backButton = new KeyboardRow();
+        backButton.add(BACK_ON_MENU.getCommand());
+        keyboardRows.add(backButton);
+
+        keyboard.setKeyboard(keyboardRows);
+        return keyboard;
     }
 }
 
