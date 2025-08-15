@@ -10,7 +10,9 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static MyBot.gymbot.service.BotCommand.*;
 
@@ -59,18 +61,29 @@ public class MassExercisesMenuKeyboard {
         return keyboard;
     }
 
-    private String getCategoryFromUpdate(Update update) {
-        // Получаем предыдущее сообщение, чтобы определить категорию
-        String text = update.getMessage().getText();
-        if (text.equals(BACK_MUSCLES.getCommand())) {
-            return BACK_MUSCLES.getCommand();
-        } else if (text.equals(LEGS.getCommand())) {
-            return LEGS.getCommand();
-        } else if (text.equals(CHEST.getCommand())) {
-            return CHEST.getCommand();
-        }
-        return null; // значение по умолчанию
+    private Map<String, String> chatCategories = new HashMap<>();
+
+    public void setCategory(String chatId, String category) {
+        chatCategories.put(chatId, category);
     }
+
+    public String getCategoryFromUpdate(Update update) {
+        String chatId = update.getMessage().getChatId().toString();
+        return chatCategories.getOrDefault(chatId, null);
+    }
+
+//    public String getCategoryFromUpdate(Update update) {
+//        // Получаем предыдущее сообщение, чтобы определить категорию
+//        String text = update.getMessage().getText();
+//        if (text.equals(BACK_MUSCLES.getCommand())) {
+//            return BACK_MUSCLES.getCommand();
+//        } else if (text.equals(LEGS.getCommand())) {
+//            return LEGS.getCommand();
+//        } else if (text.equals(CHEST.getCommand())) {
+//            return CHEST.getCommand();
+//        }
+//        return null; // значение по умолчанию
+//    }
 
     public String getPathExercises(String category) {
         return switch (category) {

@@ -58,6 +58,9 @@ public class WeightInputService {
             handleInvalidInput(chatId, executor);
         }
     }
+    private  Map<Long, String> currentExerciseMap = new HashMap<>();
+    private  Map<Long, String> currentCategoryMap = new HashMap<>();
+
 
     // Метод сохранения результата в Map
     private void saveResult(Long chatId, String exerciseName, int weight) {
@@ -151,5 +154,22 @@ public class WeightInputService {
     // Интерфейс для выполнения отправки сообщений
     public interface Executor {
         void execute(SendMessage message) throws TelegramApiException;
+    }
+
+    public void setCurrentExercise(Long chatId, String exercise) {
+        currentExerciseMap.put(chatId, exercise);
+    }
+
+    public void setCurrentCategory(Long chatId, String category) {
+        currentCategoryMap.put(chatId, category);
+    }
+
+    public String getCurrentCategory(Long chatId) {
+        return currentCategoryMap.getOrDefault(chatId, "");
+    }
+
+    public void resetState(Long chatId) {
+        currentExerciseMap.remove(chatId);
+        currentCategoryMap.remove(chatId);
     }
 }

@@ -10,6 +10,8 @@ import MyBot.gymbot.utils.ReadExercisesUtils;
 import MyBot.gymbot.utils.ReadFilesUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -41,6 +43,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final CardioTraining cardioTraining = new CardioTraining();
     private final ReadFilesUtils readFilesUtils = new ReadFilesUtils();
     private final DatabaseHelper dbHelper = new DatabaseHelper();
+    private static final Logger log = LoggerFactory.getLogger(TelegramBot.class);
 
 
     @Autowired
@@ -171,40 +174,77 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     @SneakyThrows
-    private void getResultsExercises (Update update, SendMessage sendMessage, Long chatId) {
-        sendMessage.setChatId(chatId); // Устанавливаем идентификатор чата, куда будет отправлено сообщение
-        // Получаем результаты тренировок для конкретного чата из сервиса WeightInputService
-        Map<String, Integer> results = weightInputService.getResultsForChat(chatId);
-        // Проверяем, есть ли результаты в полученной карте
+    private void getResultsExercises(Update update, SendMessage sendMessage, Long chatId) {
+        sendMessage.setChatId(chatId);
+
+        // Получаем результаты из базы данных
+        Map<String, Integer> results = dbHelper.getUserResults(chatId);
+
         if (results.isEmpty()) {
-            // Если результатов нет, устанавливаем в сообщение текст об отсутствии результатов
             sendMessage.setText("Результаты пока отсутствуют");
         } else {
-            // Если результаты есть, формируем сообщение с ними
             StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
 
-            // Проходим по всем парам "упражнение-вес" в карте результатов
             for (Map.Entry<String, Integer> entry : results.entrySet()) {
-                // Формируем строку для каждого упражнения
-                // entry.getKey() - название упражнения
-                // entry.getValue() - вес в килограммах
-                resultMessage.append(entry.getKey()) // добавляем название упражнения
-                        .append(" - ") // добавляем разделитель
-                        .append(entry.getValue()) // добавляем вес
-                        .append(" кг\n"); // добавляем единицу измерения и перенос строки
+                resultMessage.append(entry.getKey())
+                        .append(" - ")
+                        .append(entry.getValue())
+                        .append(" кг\n");
             }
-            // Устанавливаем сформированное сообщение в объект SendMessage
+
             sendMessage.setText(resultMessage.toString());
         }
+
         execute(sendMessage);
     }
 
+//    @SneakyThrows
+//    private void getResultsExercises (Update update, SendMessage sendMessage, Long chatId) {
+//        sendMessage.setChatId(chatId); // Устанавливаем идентификатор чата, куда будет отправлено сообщение
+//        // Получаем результаты тренировок для конкретного чата из сервиса WeightInputService
+//        Map<String, Integer> results = weightInputService.getResultsForChat(chatId);
+//        // Проверяем, есть ли результаты в полученной карте
+//        if (results.isEmpty()) {
+//            // Если результатов нет, устанавливаем в сообщение текст об отсутствии результатов
+//            sendMessage.setText("Результаты пока отсутствуют");
+//        } else {
+//            // Если результаты есть, формируем сообщение с ними
+//            StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
+//
+//            // Проходим по всем парам "упражнение-вес" в карте результатов
+//            for (Map.Entry<String, Integer> entry : results.entrySet()) {
+//                // Формируем строку для каждого упражнения
+//                // entry.getKey() - название упражнения
+//                // entry.getValue() - вес в килограммах
+//                resultMessage.append(entry.getKey()) // добавляем название упражнения
+//                        .append(" - ") // добавляем разделитель
+//                        .append(entry.getValue()) // добавляем вес
+//                        .append(" кг\n"); // добавляем единицу измерения и перенос строки
+//            }
+//            // Устанавливаем сформированное сообщение в объект SendMessage
+//            sendMessage.setText(resultMessage.toString());
+//        }
+//        execute(sendMessage);
+//    }
+
+//    @SneakyThrows
+//    private void handleExerciseCategory(Update update, SendMessage sendMessage, String text) {
+//        String chatId = update.getMessage().getChatId().toString();
+//
+//        // Сохраняем выбранную категорию
+//        chatCategories.put(chatId, text);
+//
+//        sendMessage.setChatId(chatId);
+//        sendMessage.setText("Выберите упражнение");
+//        sendMessage.setReplyMarkup(massExercisesMenuKeyboard.menuExercisesKeyboard(update));
+//        execute(sendMessage);
+//    }
     @SneakyThrows
     private void handleExerciseCategory(Update update, SendMessage sendMessage, String text) {
         String chatId = update.getMessage().getChatId().toString();
 
         // Сохраняем выбранную категорию
-        chatCategories.put(chatId, text);
+        massExercisesMenuKeyboard.setCategory(chatId, text);
 
         sendMessage.setChatId(chatId);
         sendMessage.setText("Выберите упражнение");
@@ -214,12 +254,14 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @SneakyThrows
     private void handleExerciseSelection(Update update, SendMessage sendMessage, String text, Long chatId) {
-        // Получаем текущую категорию для чата
-        String category = chatCategories.get(chatId.toString());
+        if (chatId == null) {
+            log.error("chatId is null in handleExerciseSelection");
+            return;
+        }
+        String category = massExercisesMenuKeyboard.getCategoryFromUpdate(update);
 
         if (category == null) {
-            sendMessage.setChatId(chatId);
-            sendMessage.setText("Сначала выберите категорию упражнений");
+            sendMessage.setText("Неверная категория упражнений");
             execute(sendMessage);
             return;
         }
@@ -229,7 +271,9 @@ public class TelegramBot extends TelegramLongPollingBot {
         );
 
         if (exercises.contains(text)) {
-            // Запускаем режим ожидания ввода веса
+            weightInputService.setCurrentExercise(chatId, text);
+            weightInputService.setCurrentCategory(chatId, category);
+
             weightInputService.startWaitingForNumber(chatId, text);
             sendMessage.setChatId(chatId);
             sendMessage.setText("Введите вес для упражнения: " + text);
@@ -237,25 +281,24 @@ public class TelegramBot extends TelegramLongPollingBot {
             return;
         }
 
-        // Проверяем, ожидает ли сервис ввода числа
         if (weightInputService.isWaitingForNumber(chatId) && !update.getMessage().getText().equals(FINISH_EXERCISE.getCommand())) {
-            // Обрабатываем введенный вес
-            weightInputService.processNumberInput(
-                    chatId,
-                    text,
-                    message -> {
-                        try {
-                            execute(message);
-                        } catch (TelegramApiException e) {
-                            System.err.println("Ошибка при отправке сообщения: " + e.getMessage());
-                        }
-                    }
-            );
-        } else {
-            // Если введенный текст не является числом и не является командой завершения
-            sendMessage.setChatId(chatId);
-            sendMessage.setText("Пожалуйста, введите числовое значение веса");
-            execute(sendMessage);
+            try {
+                int weight = Integer.parseInt(text);
+                String exerciseName = weightInputService.getCurrentExercise(chatId);
+                String currentCategory = weightInputService.getCurrentCategory(chatId);
+
+                dbHelper.saveExerciseResult(chatId, currentCategory, exerciseName, weight);
+
+                sendMessage.setChatId(chatId);
+                sendMessage.setText("Результат сохранен: " + exerciseName + " - " + weight + " кг");
+                execute(sendMessage);
+
+                weightInputService.resetState(chatId);
+            } catch (NumberFormatException e) {
+                sendMessage.setChatId(chatId);
+                sendMessage.setText("Пожалуйста, введите числовое значение веса");
+                execute(sendMessage);
+            }
         }
     }
 
