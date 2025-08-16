@@ -71,7 +71,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<version>2.7.5</version> <!-- Укажите актуальную версию -->
 				<configuration>
-					<mainClass>src/main/java/MyBot/gymbot/GymbotApplication.java</mainClass> <!-- Укажите главный класс -->
+					<mainClass>MyBot.gymbot.GymbotApplication</mainClass> <!-- Укажите главный класс -->
 				</configuration>
 			</plugin>
 		</plugins>
