@@ -8,3 +8,6 @@ bot:
 #    driver-class-name: org.sqlite.JDBC
 
 app.db.path: users.db  # путь к файлу БД
+
+server:
+  port: ${PORT:8080}
