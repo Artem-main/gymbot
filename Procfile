@@ -1,4 +1,1 @@
-web: java \
-  -jar target/*.jar \
-  --spring.profiles.active=prod \
-  --server.port=$PORT
+web: java -jar target/gymbot-0.0.1-SNAPSHOT.jar

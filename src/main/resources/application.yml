@@ -11,3 +11,7 @@ app.db.path: users.db  # путь к файлу БД
 
 server:
   port: ${PORT:8080}
+  spring:
+    cloud:
+      heroku:
+        enabled: true
