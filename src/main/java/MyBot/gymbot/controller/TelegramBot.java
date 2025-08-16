@@ -18,7 +18,6 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -204,14 +203,14 @@ public class TelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     private void getResultsExercises(SendMessage sendMessage, Long chatId, String category) {
         sendMessage.setChatId(chatId);
-
+        String muscleGroup = "Группа мышц: ";
         // Получаем результаты по категории
         Map<String, Integer> results = dbHelper.getUserResultsByCategory(chatId, category);
 
         if (results.isEmpty()) {
-            sendMessage.setText("Результаты для категории '" + category + "' пока отсутствуют");
+            sendMessage.setText(muscleGroup + category + " пока отсутствуют");
         } else {
-            StringBuilder resultMessage = new StringBuilder("Результаты для категории '" + category + "':\n");
+            StringBuilder resultMessage = new StringBuilder(muscleGroup + category + ":\n");
 
             for (Map.Entry<String, Integer> entry : results.entrySet()) {
                 resultMessage.append(entry.getKey())

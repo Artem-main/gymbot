@@ -12,7 +12,8 @@
 		<groupId>MyBot</groupId>
 		<artifactId>gymbot</artifactId>
 		<version>0.0.1-SNAPSHOT</version>
-		<name>gymbot</name>
+	<packaging>jar</packaging>
+	<name>gymbot</name>
 		<description>GYMBOTPROJECT</description>
 	<properties>
 		<java.version>16</java.version>

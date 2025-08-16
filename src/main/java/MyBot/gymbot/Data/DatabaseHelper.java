@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.sql.*;
 import java.util.*;
+import java.util.Date;
 
 @Component
 public class DatabaseHelper {
@@ -58,29 +59,35 @@ public class DatabaseHelper {
 
     private void createTables() throws SQLException {
         String createUsersTable = """
-            CREATE TABLE IF NOT EXISTS users (
-                id TEXT PRIMARY KEY,
-                user_id BIGINT UNIQUE,
-                username TEXT
-            );
-            """;
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            user_id BIGINT UNIQUE,
+            username TEXT,
+            is_premium BOOLEAN DEFAULT FALSE
+        );
+        """;
+
+        String createSubscriptionsTable = """
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id BIGINT UNIQUE,
+            subscription_type TEXT,
+            expires_at DATETIME,
+            FOREIGN KEY(user_id) REFERENCES users(user_id)
+        );
+        """;
 
         String createResultsTable = """
-            CREATE TABLE IF NOT EXISTS exercise_results (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                category TEXT,
-                user_id BIGINT,
-                exercise TEXT,
-                weight INTEGER,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(user_id) REFERENCES users(user_id)
-            );
-            """;
-
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(createResultsTable);
-            log.info("Таблица результатов создана успешно");
-        }
+        CREATE TABLE IF NOT EXISTS exercise_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT,
+            user_id BIGINT,
+            exercise TEXT,
+            weight INTEGER,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(user_id)
+        );
+        """;
 
         String addIdColumn = """
             ALTER TABLE exercise_results
@@ -88,19 +95,142 @@ public class DatabaseHelper {
             """;
 
         try (Statement stmt = connection.createStatement()) {
-            // Создаем таблицу пользователей
+            // Создаём таблицу пользователей
             stmt.execute(createUsersTable);
+            log.info("Таблица Users создана успешно");
 
-            // Проверяем существование столбца id
-            if (!columnExists("exercise_results", "id")) {
-                // Если столбца нет, добавляем его
-                stmt.execute(addIdColumn);
+            // Создаём таблицу подписок
+            stmt.execute(createSubscriptionsTable);
+            log.info("Таблица Subscriptions создана успешно");
+
+            // Создаём таблицу результатов
+            stmt.execute(createResultsTable);
+            log.info("Таблица Results создана успешно");
+        } catch (SQLException e) {
+            log.error("Ошибка при создании таблиц", e);
+            throw e;
+        }
+    }
+    // Апдейт премиум статуса
+    public void updatePremiumStatus(long userId, boolean isPremium) {
+        String sql = "UPDATE users SET is_premium = ? WHERE user_id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            // Устанавливаем параметры запроса
+            pstmt.setBoolean(1, isPremium);    // Значение статуса premium
+            pstmt.setLong(2, userId);          // ID пользователя
+
+            // Выполняем обновление
+            int rowsUpdated = pstmt.executeUpdate();
+
+            if (rowsUpdated > 0) {
+                log.info("Статус premium для пользователя {} успешно обновлен", userId);
             } else {
-                // Если столбец уже существует, создаем таблицу
-                stmt.execute(createResultsTable);
+                log.warn("Пользователь с ID {} не найден", userId);
             }
+        } catch (SQLException e) {
+            log.error("Ошибка при обновлении статуса premium", e);
+            throw new RuntimeException("Не удалось обновить статус premium", e);
+        }
+    }
 
-            log.info("Таблицы созданы успешно");
+    // Проверка статуса пользователя
+    public boolean isPremiumActive(long userId) {
+        String sql = "SELECT is_premium FROM users WHERE user_id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBoolean("is_premium");
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Ошибка при получении статуса premium", e);
+        }
+        return false;
+    }
+
+    // Метод для добавления подписки
+    public void addSubscription(long userId, String subscriptionType, Date expiresAt) {
+        String sql = """
+        INSERT INTO subscriptions (user_id, subscription_type, expires_at) 
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET 
+        subscription_type=excluded.subscription_type,
+        expires_at=excluded.expires_at
+        """;
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, userId);
+            pstmt.setString(2, subscriptionType);
+            pstmt.setTimestamp(3, new Timestamp(expiresAt.getTime()));
+            pstmt.executeUpdate();
+
+            // Обновляем статус премиум в таблице users
+            updateUserPremiumStatus(userId, true);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Метод для обновления статуса премиум
+    private void updateUserPremiumStatus(long userId, boolean isPremium) {
+        String sql = "UPDATE users SET is_premium = ? WHERE user_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setBoolean(1, isPremium);
+            pstmt.setLong(2, userId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Метод для получения информации о подписке
+    public Subscription getSubscription(long userId) {
+        String sql = "SELECT * FROM subscriptions WHERE user_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new Subscription(
+                            rs.getLong("user_id"),
+                            rs.getString("subscription_type"),
+                            rs.getTimestamp("expires_at")
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // Метод проверки активности подписки
+    public boolean isSubscriptionActive(long userId) {
+        Subscription subscription = getSubscription(userId);
+        if (subscription != null) {
+            // Проверяем, не истекла ли подписка
+            return subscription.getExpiresAt().after(new Timestamp(System.currentTimeMillis()));
+        }
+        return false;
+    }
+
+    // Метод обновления информации о подписке
+    public void updateSubscription(long userId, String subscriptionType, Date expiresAt) {
+        addSubscription(userId, subscriptionType, expiresAt); // Используем существующий метод
+    }
+
+    // Метод удаления подписки
+    public void removeSubscription(long userId) {
+        String sql = "DELETE FROM subscriptions WHERE user_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, userId);
+            pstmt.executeUpdate();
+            // Обновляем статус премиум
+            updateUserPremiumStatus(userId, false);
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
@@ -137,15 +267,18 @@ public class DatabaseHelper {
     }
 
     public void addUser(Long userId, String username) {
-        String sql = "INSERT INTO users (id, user_id, username) VALUES (?, ?, ?)";
+        String sql = """
+        INSERT INTO users (id, user_id, username, is_premium) 
+        VALUES (?, ?, ?, ?)
+        """;
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             String uuid = UUID.randomUUID().toString();
             pstmt.setString(1, uuid);
             pstmt.setLong(2, userId);
             pstmt.setString(3, username);
+            pstmt.setBoolean(4, false);  // По умолчанию не премиум
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            // Если пользователь уже существует, обновим его данные
             if (e.getSQLState().equals("23505")) {
                 updateUser(userId, username);
             } else {
@@ -171,9 +304,11 @@ public class DatabaseHelper {
             pstmt.setLong(1, userId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
+                    // Добавляем получение статуса премиум
                     return new User(
                             rs.getLong("user_id"),
-                            rs.getString("username")
+                            rs.getString("username"),
+                            rs.getBoolean("is_premium") // Получаем статус премиум
                     );
                 }
             }
@@ -279,12 +414,10 @@ public class DatabaseHelper {
 
 }
 
-
-
-
 class User {
     private long userId;
     private String username;
+    private boolean isPremium; // Добавляем поле для статуса премиум
 
     public long getUserId() {
         return userId;
@@ -301,9 +434,57 @@ class User {
     public void setUsername(String username) {
         this.username = username;
     }
-    public User(long userId, String username) {
+
+    public boolean isPremium() {
+        return isPremium;
+    }
+
+    public void setPremium(boolean isPremium) {
+        this.isPremium = isPremium;
+    }
+
+    // Обновляем конструктор
+    public User(long userId, String username, boolean isPremium) {
         this.userId = userId;
         this.username = username;
+        this.isPremium = isPremium;
+    }
+}
+
+// Добавляем класс Subscription для работы с подписками
+class Subscription {
+    private long userId;
+    private String subscriptionType;
+    private Timestamp expiresAt;
+
+    public long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(long userId) {
+        this.userId = userId;
+    }
+
+    public String getSubscriptionType() {
+        return subscriptionType;
+    }
+
+    public void setSubscriptionType(String subscriptionType) {
+        this.subscriptionType = subscriptionType;
+    }
+
+    public Timestamp getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Timestamp expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public Subscription(long userId, String subscriptionType, Timestamp expiresAt) {
+        this.userId = userId;
+        this.subscriptionType = subscriptionType;
+        this.expiresAt = expiresAt;
     }
 }
 
