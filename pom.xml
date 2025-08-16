@@ -53,7 +53,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>RELEASE</version>
+			<version>1.18.30</version>
 			<scope>compile</scope>
 		</dependency>
 
@@ -69,8 +69,13 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<version>2.7.5</version> <!-- Укажите актуальную версию -->
+				<configuration>
+					<mainClass>src/main/java/MyBot/gymbot/GymbotApplication.java</mainClass> <!-- Укажите главный класс -->
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
+
 
 </project>
