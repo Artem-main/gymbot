@@ -72,19 +72,6 @@ public class MassExercisesMenuKeyboard {
         return chatCategories.getOrDefault(chatId, null);
     }
 
-//    public String getCategoryFromUpdate(Update update) {
-//        // Получаем предыдущее сообщение, чтобы определить категорию
-//        String text = update.getMessage().getText();
-//        if (text.equals(BACK_MUSCLES.getCommand())) {
-//            return BACK_MUSCLES.getCommand();
-//        } else if (text.equals(LEGS.getCommand())) {
-//            return LEGS.getCommand();
-//        } else if (text.equals(CHEST.getCommand())) {
-//            return CHEST.getCommand();
-//        }
-//        return null; // значение по умолчанию
-//    }
-
     public String getPathExercises(String category) {
         return switch (category) {
             case "Спина"-> BACK_MUSCLES.getFilePath();

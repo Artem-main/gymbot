@@ -121,7 +121,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                     handleExerciseCategory(update, sendMessage, text);
                 }
                 case RESULTS -> {
-                    getResultsExercises(update,sendMessage, chatId);
+                    String category = massExercisesMenuKeyboard.getCategoryFromUpdate(update);
+                    getResultsExercises(sendMessage, chatId, category);
                 }
                 case CARDIO -> {
                     sendMessage.setChatId(chatId);
@@ -153,9 +154,9 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @SneakyThrows
     private void getStartedMenu (Update update, SendMessage sendMessage, Long chatId) {
-        final String readMainMenuText = readFilesUtils.readTextFromFile(START.getFilePath());
+//        final String readMainMenuText = readFilesUtils.readTextFromFile("Выберите направление тренировок");
         sendMessage.setChatId(chatId);
-        sendMessage.setText(readMainMenuText);
+        sendMessage.setText("Выберите направление тренировок");
         sendMessage.setReplyMarkup(mainMenu.createReplyKeyboard(update));
         execute(sendMessage);
     }
@@ -173,17 +174,44 @@ public class TelegramBot extends TelegramLongPollingBot {
         chatCategories.remove(chatId); // Очищаем категорию
     }
 
+    // Получаем информацию о тренировках, но не сохраняем ее
+
+//    @SneakyThrows
+//    private void getResultsExercises(Update update, SendMessage sendMessage, Long chatId) {
+//        sendMessage.setChatId(chatId);
+//
+//        // Получаем результаты из базы данных
+//        Map<String, Integer> results = dbHelper.getUserResults(chatId);
+//
+//        if (results.isEmpty()) {
+//            sendMessage.setText("Результаты пока отсутствуют");
+//        } else {
+//            StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
+//
+//            for (Map.Entry<String, Integer> entry : results.entrySet()) {
+//                resultMessage.append(entry.getKey())
+//                        .append(" - ")
+//                        .append(entry.getValue())
+//                        .append(" кг\n");
+//            }
+//
+//            sendMessage.setText(resultMessage.toString());
+//        }
+//
+//        execute(sendMessage);
+//    }
+
     @SneakyThrows
-    private void getResultsExercises(Update update, SendMessage sendMessage, Long chatId) {
+    private void getResultsExercises(SendMessage sendMessage, Long chatId, String category) {
         sendMessage.setChatId(chatId);
 
-        // Получаем результаты из базы данных
-        Map<String, Integer> results = dbHelper.getUserResults(chatId);
+        // Получаем результаты по категории
+        Map<String, Integer> results = dbHelper.getUserResultsByCategory(chatId, category);
 
         if (results.isEmpty()) {
-            sendMessage.setText("Результаты пока отсутствуют");
+            sendMessage.setText("Результаты для категории '" + category + "' пока отсутствуют");
         } else {
-            StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
+            StringBuilder resultMessage = new StringBuilder("Результаты для категории '" + category + "':\n");
 
             for (Map.Entry<String, Integer> entry : results.entrySet()) {
                 resultMessage.append(entry.getKey())
@@ -198,47 +226,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         execute(sendMessage);
     }
 
-//    @SneakyThrows
-//    private void getResultsExercises (Update update, SendMessage sendMessage, Long chatId) {
-//        sendMessage.setChatId(chatId); // Устанавливаем идентификатор чата, куда будет отправлено сообщение
-//        // Получаем результаты тренировок для конкретного чата из сервиса WeightInputService
-//        Map<String, Integer> results = weightInputService.getResultsForChat(chatId);
-//        // Проверяем, есть ли результаты в полученной карте
-//        if (results.isEmpty()) {
-//            // Если результатов нет, устанавливаем в сообщение текст об отсутствии результатов
-//            sendMessage.setText("Результаты пока отсутствуют");
-//        } else {
-//            // Если результаты есть, формируем сообщение с ними
-//            StringBuilder resultMessage = new StringBuilder("Ваши результаты:\n");
-//
-//            // Проходим по всем парам "упражнение-вес" в карте результатов
-//            for (Map.Entry<String, Integer> entry : results.entrySet()) {
-//                // Формируем строку для каждого упражнения
-//                // entry.getKey() - название упражнения
-//                // entry.getValue() - вес в килограммах
-//                resultMessage.append(entry.getKey()) // добавляем название упражнения
-//                        .append(" - ") // добавляем разделитель
-//                        .append(entry.getValue()) // добавляем вес
-//                        .append(" кг\n"); // добавляем единицу измерения и перенос строки
-//            }
-//            // Устанавливаем сформированное сообщение в объект SendMessage
-//            sendMessage.setText(resultMessage.toString());
-//        }
-//        execute(sendMessage);
-//    }
 
-//    @SneakyThrows
-//    private void handleExerciseCategory(Update update, SendMessage sendMessage, String text) {
-//        String chatId = update.getMessage().getChatId().toString();
-//
-//        // Сохраняем выбранную категорию
-//        chatCategories.put(chatId, text);
-//
-//        sendMessage.setChatId(chatId);
-//        sendMessage.setText("Выберите упражнение");
-//        sendMessage.setReplyMarkup(massExercisesMenuKeyboard.menuExercisesKeyboard(update));
-//        execute(sendMessage);
-//    }
     @SneakyThrows
     private void handleExerciseCategory(Update update, SendMessage sendMessage, String text) {
         String chatId = update.getMessage().getChatId().toString();
@@ -276,7 +264,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             weightInputService.startWaitingForNumber(chatId, text);
             sendMessage.setChatId(chatId);
-            sendMessage.setText("Введите вес для упражнения: " + text);
+            sendMessage.setText("Введите вес для упражнения: \n" + text);
             execute(sendMessage);
             return;
         }
@@ -290,7 +278,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 dbHelper.saveExerciseResult(chatId, currentCategory, exerciseName, weight);
 
                 sendMessage.setChatId(chatId);
-                sendMessage.setText("Результат сохранен: " + exerciseName + " - " + weight + " кг");
+                sendMessage.setText("Результат сохранен: \n" + exerciseName + " - " + weight + " кг");
                 execute(sendMessage);
 
                 weightInputService.resetState(chatId);
@@ -308,11 +296,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         sendMessage.setChatId(chatId);
         sendMessage.setText(text);
         execute(sendMessage);
-    }
-
-    @Override
-    public void onClosing() {
-        dbHelper.close();
     }
 
 }

@@ -7,6 +7,4 @@ bot:
 #    url: jdbc:sqlite:file:${db.path}
 #    driver-class-name: org.sqlite.JDBC
 
-app:
-  db:
-    path: users.db  # путь к файлу БД
+app.db.path: users.db  # путь к файлу БД
